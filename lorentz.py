@@ -10,7 +10,7 @@ from collections import Counter
 from datetime import datetime
 from tensorboardX import SummaryWriter
 from torch.utils.data import Dataset, DataLoader
-import datasets
+import datasets_former
 import pickle
 
 import matplotlib
