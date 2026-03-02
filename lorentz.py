@@ -10,7 +10,7 @@ from collections import Counter
 from datetime import datetime
 from tensorboardX import SummaryWriter
 from torch.utils.data import Dataset, DataLoader
-import datasets_former
+import datasets
 import pickle
 
 import matplotlib
@@ -190,7 +190,7 @@ class Graph(Dataset):
             j = valid_idxs[0]
             min = self.pairwise_matrix[j,i]
         elif has_child:
-            valid_idxs = arange[self.pairwise_matrix[i, arange].nonzero()[1]]
+            valid_idxs = arange[self.pairwise_matrix[i, arange].nonzero()[0]]
             j = valid_idxs[0]
             min = self.pairwise_matrix[i,j]
         else:
@@ -200,7 +200,7 @@ class Graph(Dataset):
         if has_child:
             indices = indices[(self.pairwise_matrix[i,indices] < min).nonzero()[0]]
         else:
-            indices = indices[(self.pairwise_matrix[indices, i] < min).nonzero()[1]]
+            indices = indices[(self.pairwise_matrix[indices, i] < min).nonzero()[0]]
 
         indices = indices[: self.sample_size]
         #print(indices)
