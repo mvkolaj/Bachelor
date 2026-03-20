@@ -102,7 +102,7 @@ if __name__ == "__main__":
         "-logdir", help="What folder to put logs in", default="runs", type=str
     )
     parser.add_argument(
-        "-save_step", help="Save at what multiple of epochs?", default=2, type=int
+        "-save_step", help="Save at what multiple of epochs?", default=10, type=int
     )
     parser.add_argument(
         "-savedir", help="What folder to put checkpoints in", default="ckpt", type=str
@@ -204,7 +204,7 @@ if __name__ == "__main__":
             plt.close()
         sys.exit(0)
 
-    graph_dataset = Graph(pairwise, args.sample_size, args.batch_size)
+    graph_dataset = Graph(pairwise, args.batch_size, args.sample_size)
     dataloader = DataLoader(
         graph_dataset,
         shuffle=args.shuffle,
@@ -219,11 +219,12 @@ if __name__ == "__main__":
 
     with tqdm(ncols=80, mininterval=0.2, total=args.epochs) as epoch_bar:
         for epoch in range(args.epochs):
-            rsgd.learning_rate = (
-                args.learning_rate / args.burn_c
-                if epoch < args.burn_epochs
-                else args.learning_rate
-            )
+            for g in rsgd.param_groups:
+                g['learning_rate'] = (
+                    args.learning_rate / args.burn_c
+                    if epoch < args.burn_epochs
+                    else args.learning_rate
+        )
             for I, Ks in tqdm(dataloader, total=int(np.ceil(graph_dataset.n_items / args.batch_size))):
                 I = I.to(args.device)
                 Ks = Ks.to(args.device)
@@ -231,6 +232,9 @@ if __name__ == "__main__":
                 loss = net(I, Ks).mean()
                 loss.backward()
                 rsgd.step()
+            table = net.lorentz_to_poincare()
+            print(f"Epoch {epoch} | loss: {float(loss):.4f} | embedding norm mean: {np.linalg.norm(table[1:], axis=1).mean():.6f}")
+            
             if args.log:
                 writer.add_scalar("loss", loss, epoch)
                 writer.add_scalar(

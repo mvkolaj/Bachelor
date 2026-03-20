@@ -72,10 +72,7 @@ class RSGD(optim.Optimizer):
                 B, D = p.size()
                 gl = torch.eye(D, device=p.device, dtype=p.dtype)
                 gl[0, 0] = -1
-                grad_norm = torch.norm(p.grad.data)
-                grad_norm = torch.where(grad_norm > 1, grad_norm, torch.tensor(1.0).to(p.device))
-                # only normalize if global grad_norm is more than 1
-                h = (p.grad.data / grad_norm) @ gl
+                h = p.grad.data @ gl          
                 proj = (
                     h
                     - (
@@ -83,11 +80,10 @@ class RSGD(optim.Optimizer):
                     ).unsqueeze(1)
                     * p
                 )
-                # print(p, lorentz_scalar_product(p, p))
                 update = exp_map(p, -group["learning_rate"] * proj)
                 is_nan_inf = torch.isnan(update) | torch.isinf(update)
                 update = torch.where(is_nan_inf, p, update)
-                update[0, :] = p[0, :]  # no ❤️  for embedding
+                update[0, :] = p[0, :]
                 update = set_dim0(update)
                 p.data.copy_(update)
 
@@ -167,49 +163,49 @@ class Graph(Dataset):
     def __init__(self, pairwise_matrix, batch_size, sample_size=10):
         self.pairwise_matrix = pairwise_matrix
         self.n_items = pairwise_matrix.shape[0]
-        self.sample_size = sample_size
+        self.sample_size = int(sample_size)
         self.arange = np.arange(0, self.n_items)
         self.cnter = 0
-        self.batch_size = batch_size
+        self.batch_size = int(batch_size)
 
     def __len__(self):
         return self.n_items
 
     def __getitem__(self, i):
         self.cnter = (self.cnter + 1) % self.batch_size
-        I = torch.Tensor([i + 1]).squeeze().long()
-        has_child = (self.pairwise_matrix[i] > 0).sum()
-        has_parent = (self.pairwise_matrix[:, i] > 0).sum()
-        if self.cnter == 0:
-            arange = np.random.permutation(self.arange)
-        else:
-            arange = self.arange
 
-        if has_parent:  # if no child go for parent
-            valid_idxs = arange[self.pairwise_matrix[arange, i].nonzero()[0]]
-            j = valid_idxs[0]
-            min = self.pairwise_matrix[j,i]
-        elif has_child:
-            valid_idxs = arange[self.pairwise_matrix[i, arange].nonzero()[0]]
-            j = valid_idxs[0]
-            min = self.pairwise_matrix[i,j]
-        else:
-            raise Exception(f"Node {i} has no parent and no child")
-        indices = arange
-        indices = indices[indices != i]
-        if has_child:
-            indices = indices[(self.pairwise_matrix[i,indices] < min).nonzero()[0]]
-        else:
-            indices = indices[(self.pairwise_matrix[indices, i] < min).nonzero()[0]]
+        # central node: 1..n, because 0 is padding
+        I = torch.tensor(i + 1, dtype=torch.long)
 
-        indices = indices[: self.sample_size]
-        #print(indices)
-        #raise NotImplementedError()
-        Ks = np.concatenate([[j], indices, np.zeros(self.sample_size)])[
-            : self.sample_size
-        ]
-        # print(I, Ks)
-        return I, torch.Tensor(Ks).long()
+        row = self.pairwise_matrix[i]
+
+        # prefer non-self positive neighbors
+        pos_candidates = np.where((row > 0) & (self.arange != i))[0]
+
+        if len(pos_candidates) == 0:
+            # fallback: allow self-loop only if absolutely necessary
+            if row[i] > 0:
+                j = i
+                min_w = float(row[i])
+            else:
+                raise Exception(f"Node {i} has no neighbors")
+        else:
+            j = int(np.random.choice(pos_candidates))
+            min_w = float(row[j])
+
+        neg_candidates = np.where((row < min_w) & (self.arange != i))[0]
+        np.random.shuffle(neg_candidates)
+        negs = neg_candidates[: max(0, self.sample_size - 1)]
+
+        # use -1 as padding placeholder, then shift everything by +1
+        Ks_np = np.full((self.sample_size,), -1, dtype=np.int64)
+        Ks_np[0] = j
+        Ks_np[1 : 1 + len(negs)] = negs
+
+        # -1 -> 0 padding, 0..n-1 -> 1..n
+        Ks = torch.tensor(Ks_np + 1, dtype=torch.long)
+
+        return I, Ks
 
 
 def recon(table, pair_mat):
