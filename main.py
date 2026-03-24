@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-log_step", help="Log at what multiple of epochs?", default=1, type=int
     )
-    parser.add_argument("-log", default=False, type=bool)
+    parser.add_argument("-log", default=False, action = "store_true")
     parser.add_argument(
         "-logdir", help="What folder to put logs in", default="runs", type=str
     )

@@ -193,7 +193,7 @@ class Graph(Dataset):
             j = int(np.random.choice(pos_candidates))
             min_w = float(row[j])
 
-        neg_candidates = np.where((row < min_w) & (self.arange != i))[0]
+        neg_candidates = np.where((row == 0) & (self.arange != i))[0]
         np.random.shuffle(neg_candidates)
         negs = neg_candidates[: max(0, self.sample_size - 1)]
 
