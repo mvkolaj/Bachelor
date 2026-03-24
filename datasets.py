@@ -3,13 +3,15 @@ import scipy.sparse as sparse
 import pickle
 from collections import defaultdict
 
-my_graph = np.load("my_graph.npy")
+collab_graph = np.load("collab_graph.npy")
+enoa_graph   = np.load("enoa_graph.npy")
 
 def get_pickle_dataset(filename):
     return pickle.load(open(filename, 'rb'))
 
 datasets = {
-    "my_graph": my_graph,
+    "collab_graph": collab_graph,
+    "enoa_graph":   enoa_graph,
 }
 
 print(' '.join(datasets.keys()))
