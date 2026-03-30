@@ -23,6 +23,9 @@ plt.style.use("ggplot")
 import warnings
 warnings.filterwarnings('ignore')
 
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
 
 _moon_count = 0
 
