@@ -4,13 +4,13 @@ import pickle
 from collections import defaultdict
 
 
-enoa_graph   = np.load("enoa_graph.npy")
+enao_graph   = np.load("enao_graph.npy")
 
 def get_pickle_dataset(filename):
     return pickle.load(open(filename, 'rb'))
 
 datasets = {
-    "enoa_graph":   enoa_graph,
+    "enao_graph":   enao_graph,
 }
 
 print(' '.join(datasets.keys()))
